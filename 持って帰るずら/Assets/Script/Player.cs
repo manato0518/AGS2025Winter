@@ -285,7 +285,7 @@ public class Player : MonoBehaviour
                 break;
         }
 
-        if()
+        if(SetState)
     }
 
     IEnumerator PostEffectBlood()
