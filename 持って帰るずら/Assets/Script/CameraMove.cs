@@ -45,6 +45,9 @@ public class CameraMove : MonoBehaviour
     //プレイヤーの所持アイテム
     [SerializeField] private ItemManager itemManager_;
 
+    public RaycastHit hit_;
+    public Vector3 hitPos_;
+
     // Update is called once per frame
     private void Update()
     {
@@ -86,9 +89,6 @@ public class CameraMove : MonoBehaviour
         //Rayの描画
         Ray ray = new Ray(transform.position, transform.forward);
 
-        //Rayが当たったItemの格納
-        RaycastHit hit;
-
         //Raycastの可視化
         Debug.DrawRay(ray.origin, ray.direction*5.0f, Color.red);
 
@@ -109,11 +109,13 @@ public class CameraMove : MonoBehaviour
         }
 
         //Rayがアイテムに当たっているかの判定
-        if (Physics.Raycast(ray,out hit))
+        if (Physics.Raycast(ray,out hit_))
         {
 
+            hitPos_ = hit_.point;
+
             //Tagでアイテムの判定
-            if (hit.collider.CompareTag("Item"))
+            if (hit_.collider.CompareTag("Item"))
             {
                 feelItem = true;
 
@@ -130,7 +132,7 @@ public class CameraMove : MonoBehaviour
                     if (g.fillAmount >= 1.0f)
                     {
                         //アイテム回収処理
-                        GetItem(hit.collider.gameObject);
+                        GetItem(hit_.collider.gameObject);
                         g.fillAmount = 0.0f;
                     }
 

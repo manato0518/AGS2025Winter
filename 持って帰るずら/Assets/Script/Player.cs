@@ -1,7 +1,10 @@
+using Cinemachine;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
@@ -26,6 +29,9 @@ public class Player : MonoBehaviour
 
     // 移動速度
     public float speed_;
+
+    //移動判定
+    private bool isMove = false;
 
     //リスポーン地点
     public Vector3 RespawnPoints;
@@ -56,6 +62,9 @@ public class Player : MonoBehaviour
 
     //カメラの取得
     public Camera camera_;
+
+    //Virtual Camera
+    public CinemachineVirtualCamera virtualCamera;
 
     //プレイヤーの所持アイテム
     [SerializeField] private ItemManager itemManager_;
@@ -116,33 +125,8 @@ public class Player : MonoBehaviour
         //回復処理
         Heal();
 
-    }
-
-    void playerMove()
-    {
-        //移動処理
-        var velocity = Vector3.zero;
-        if (Input.GetKey(KeyCode.W))
-        {
-            velocity.z = speed_;
-        }
-        if (Input.GetKey(KeyCode.A))
-        {
-            velocity.x = -speed_;
-        }
-        if (Input.GetKey(KeyCode.S))
-        {
-            velocity.z = -speed_;
-        }
-        if (Input.GetKey(KeyCode.D))
-        {
-            velocity.x = speed_;
-        }
-        if (velocity.x != 0 || velocity.z != 0)
-        {
-            transform.position += transform.rotation * velocity;
-        }
-
+        //歩行時のカメラ揺れ
+        WalkCmareTremor();
 
         //マウスカーソルの表示
         if (Input.GetKeyDown(KeyCode.Escape))
@@ -150,6 +134,43 @@ public class Player : MonoBehaviour
             Cursor.visible = true;
         }
 
+    }
+
+    void playerMove()
+    {
+
+        isMove = false;
+
+        //移動処理
+        var velocity = Vector3.zero;
+        if (Input.GetKey(KeyCode.W))
+        {
+            velocity.z = speed_;
+            isMove = true;
+        }
+
+        if (Input.GetKey(KeyCode.A))
+        {
+            velocity.x = -speed_;
+            isMove = true;
+        }
+
+        if (Input.GetKey(KeyCode.S))
+        {
+            velocity.z = -speed_;
+            isMove = true;
+        }
+
+        if (Input.GetKey(KeyCode.D))
+        {
+            velocity.x = speed_;
+            isMove = true;
+        }
+
+        if (velocity.x != 0 || velocity.z != 0)
+        {
+            transform.position += transform.rotation * velocity;
+        }
     }
 
     private void Respawn()
@@ -171,6 +192,22 @@ public class Player : MonoBehaviour
             Damage();
         }
         
+    }
+
+    //歩行時のカメラ揺れ
+    private void WalkCmareTremor()
+    {
+        var perlin = virtualCamera.GetCinemachineComponent<CinemachineBasicMultiChannelPerlin>();
+
+        if(isMove)
+        {
+            perlin.m_AmplitudeGain= 1.5f;
+        }
+        else
+        {
+            perlin.m_AmplitudeGain= 0.0f;
+        }
+
     }
 
     //ダメージ処理
@@ -202,7 +239,6 @@ public class Player : MonoBehaviour
         //回復する数値
         //float healvalue = 0.05f;
         float healvalue = 0.2f;
-
 
         deltaHealTime -= Time.deltaTime;
 
@@ -264,9 +300,6 @@ public class Player : MonoBehaviour
         }
     }
 
-
-
-
     public enum HpState
     {
         NOEML,
@@ -275,17 +308,25 @@ public class Player : MonoBehaviour
 
     public void SetState(HpState tempState, Transform targetObject = null)
     {
+        if(hState == tempState)
+        {
+            return;
+        }
+
+        hState = tempState;
+
         switch (tempState)
         {
             case HpState.NOEML:
                 break;
             case HpState.DANGER:
+                StartCoroutine(DangerPostEffectAberration());
                 break;
             default:
                 break;
         }
+        //SetState(Enemy.EnemyState.GATHER);
 
-        if(SetState)
     }
 
     IEnumerator PostEffectBlood()
@@ -313,7 +354,6 @@ public class Player : MonoBehaviour
 
         while (true)
         {
-
             Color bloodColor = bloodImg.color;
 
             //線形補完
@@ -324,7 +364,6 @@ public class Player : MonoBehaviour
             bloodImg.color = bloodColor;
 
             yield return new WaitForSeconds(0.1f);
-
         }
 
     }
@@ -345,13 +384,19 @@ public class Player : MonoBehaviour
             if(tmpHp <= 30)
             {
                 tmpHp = 0;
-                StartCoroutine(DangerPostEffectAberration());
                 SetState(HpState.DANGER);
             }
             else if(tmpHp >= 60)
             {
                 tmpHp = tmpMaxHp;
             }
+
+            if(hState == HpState.DANGER)
+            {
+                yield return new WaitForSeconds(0.1f);
+                continue;
+            }
+
             float b = Mathf.Lerp(vMin, vMax, 1.0f - tmpHp / tmpMaxHp);
 
             //chromaticAberration.intensity.value = Mathf.Clamp(chromaticAberration.intensity.value + vIncrement, vMin, vMax);
@@ -360,7 +405,6 @@ public class Player : MonoBehaviour
             yield return new WaitForSeconds(0.1f);
 
         }
-
     }
 
     IEnumerator DangerPostEffectAberration()
@@ -389,7 +433,6 @@ public class Player : MonoBehaviour
             chromaticAberration.intensity.value = Mathf.Clamp(sin, vMin, vMax);
 
             yield return new WaitForSeconds(0.1f);
-
         }
 
     }
